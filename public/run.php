@@ -43,6 +43,80 @@ function downloadsDir(): string
 
 function ensureDir(string $path): void
 {
+if ($action === 'addClient') {
+    $rfc = strtoupper(trim((string)($_POST['newRfc'] ?? '')));
+    $clientName = trim((string)($_POST['clientName'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+
+    // Validación básica RFC (flexible)
+    if (!preg_match('/^[A-Z0-9&Ñ]{12,13}$/u', $rfc)) {
+        throw new RuntimeException("RFC inválido. Debe tener 12 o 13 caracteres (ej. AAA010101AAA).");
+    }
+    if ($password === '') {
+        throw new RuntimeException("Contraseña requerida.");
+    }
+
+    // Validar uploads
+    if (!isset($_FILES['cerFile'], $_FILES['keyFile'])) {
+        throw new RuntimeException("Faltan archivos .cer y .key.");
+    }
+
+    $cer = $_FILES['cerFile'];
+    $key = $_FILES['keyFile'];
+
+    if ($cer['error'] !== UPLOAD_ERR_OK) throw new RuntimeException("Error subiendo .cer (code {$cer['error']}).");
+    if ($key['error'] !== UPLOAD_ERR_OK) throw new RuntimeException("Error subiendo .key (code {$key['error']}).");
+
+    // Validar extensión por nombre (simple y suficiente para uso interno)
+    $cerName = strtolower((string)($cer['name'] ?? ''));
+    $keyName = strtolower((string)($key['name'] ?? ''));
+    if (!str_ends_with($cerName, '.cer')) throw new RuntimeException("El certificado debe ser .cer");
+    if (!str_ends_with($keyName, '.key')) throw new RuntimeException("La llave debe ser .key");
+
+    // Carpeta destino (fuera de public)
+    $clientsDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'clients';
+    $targetDir = $clientsDir . DIRECTORY_SEPARATOR . $rfc;
+
+    if (!is_dir($targetDir) && !mkdir($targetDir, 0700, true)) {
+        throw new RuntimeException("No pude crear carpeta del cliente: $targetDir");
+    }
+
+    // Guardar con nombres estándar
+    $cerPath = $targetDir . DIRECTORY_SEPARATOR . 'certificado.cer';
+    $keyPath = $targetDir . DIRECTORY_SEPARATOR . 'llave.key';
+    $pwPath  = $targetDir . DIRECTORY_SEPARATOR . 'password.txt';
+
+    if (!move_uploaded_file($cer['tmp_name'], $cerPath)) {
+        throw new RuntimeException("No pude guardar certificado.cer");
+    }
+    if (!move_uploaded_file($key['tmp_name'], $keyPath)) {
+        throw new RuntimeException("No pude guardar llave.key");
+    }
+
+    // Guardar password.txt (solo una línea)
+    file_put_contents($pwPath, $password);
+
+    // Guardar nombre opcional (para mostrarlo luego)
+    if ($clientName !== '') {
+        $meta = ['name' => $clientName, 'rfc' => $rfc, 'savedAt' => (new DateTimeImmutable())->format(DateTimeInterface::ATOM)];
+        file_put_contents($targetDir . DIRECTORY_SEPARATOR . 'client.json', json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    }
+
+    render("Cliente agregado", "
+      <div class='card'>
+        <p class='ok'><b>Listo.</b> Se guardó el cliente <code>" . h($rfc) . "</code>.</p>
+        <p class='muted'>Archivos:</p>
+        <ul>
+          <li><code>clients/$rfc/certificado.cer</code></li>
+          <li><code>clients/$rfc/llave.key</code></li>
+          <li><code>clients/$rfc/password.txt</code></li>
+        </ul>
+        <p>Regresa a la página principal y recarga (F5) para que aparezca en el listado.</p>
+      </div>
+    ");
+    exit;
+}
+
     if (!is_dir($path) && !mkdir($path, 0777, true) && !is_dir($path)) {
         throw new RuntimeException("No se pudo crear carpeta: $path");
     }
@@ -117,8 +191,15 @@ function render(string $title, string $bodyHtml): void
     echo "</body></html>";
 }
 
-$action = $_POST['action'] ?? '';
 date_default_timezone_set('America/Mexico_City');
+
+$action = (string)($_POST['action'] ?? '');
+if ($action === '') {
+    // si alguien abre run.php directo en el navegador, regresa al inicio
+    header('Location: index.php');
+    exit;
+}
+
 try {
     if ($action === 'create') {
         $rfc = trim((string)($_POST['rfc'] ?? ''));
@@ -409,6 +490,78 @@ try {
     ");
         exit;
     }
+if ($action === 'addClient') {
+    $rfc = strtoupper(trim((string)($_POST['newRfc'] ?? '')));
+    $clientName = trim((string)($_POST['clientName'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+
+    if (!preg_match('/^[A-Z0-9&Ñ]{12,13}$/u', $rfc)) {
+        throw new RuntimeException("RFC inválido. Debe tener 12 o 13 caracteres (ej. AAA010101AAA).");
+    }
+    if ($password === '') {
+        throw new RuntimeException("Contraseña requerida.");
+    }
+
+    if (!isset($_FILES['cerFile'], $_FILES['keyFile'])) {
+        throw new RuntimeException("Faltan archivos .cer y .key.");
+    }
+
+    $cer = $_FILES['cerFile'];
+    $key = $_FILES['keyFile'];
+
+    if ($cer['error'] !== UPLOAD_ERR_OK) throw new RuntimeException("Error subiendo .cer (code {$cer['error']}).");
+    if ($key['error'] !== UPLOAD_ERR_OK) throw new RuntimeException("Error subiendo .key (code {$key['error']}).");
+
+    $cerName = strtolower((string)($cer['name'] ?? ''));
+    $keyName = strtolower((string)($key['name'] ?? ''));
+    if (!str_ends_with($cerName, '.cer')) throw new RuntimeException("El certificado debe ser .cer");
+    if (!str_ends_with($keyName, '.key')) throw new RuntimeException("La llave debe ser .key");
+
+    $clientsDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'clients';
+    $targetDir = $clientsDir . DIRECTORY_SEPARATOR . $rfc;
+
+    if (!is_dir($targetDir) && !mkdir($targetDir, 0700, true)) {
+        throw new RuntimeException("No pude crear carpeta del cliente: $targetDir");
+    }
+
+    $cerPath = $targetDir . DIRECTORY_SEPARATOR . 'certificado.cer';
+    $keyPath = $targetDir . DIRECTORY_SEPARATOR . 'llave.key';
+    $pwPath  = $targetDir . DIRECTORY_SEPARATOR . 'password.txt';
+
+    if (!move_uploaded_file($cer['tmp_name'], $cerPath)) {
+        throw new RuntimeException("No pude guardar certificado.cer");
+    }
+    if (!move_uploaded_file($key['tmp_name'], $keyPath)) {
+        throw new RuntimeException("No pude guardar llave.key");
+    }
+
+    file_put_contents($pwPath, $password);
+
+    if ($clientName !== '') {
+        $meta = [
+            'name' => $clientName,
+            'rfc' => $rfc,
+            'savedAt' => (new DateTimeImmutable())->format(DateTimeInterface::ATOM),
+        ];
+        file_put_contents(
+            $targetDir . DIRECTORY_SEPARATOR . 'client.json',
+            json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+        );
+    }
+
+    render("Cliente agregado", "
+      <div class='card'>
+        <p class='ok'><b>Listo.</b> Se guardó el cliente <code>" . h($rfc) . "</code>.</p>
+        <ul>
+          <li><code>clients/$rfc/certificado.cer</code></li>
+          <li><code>clients/$rfc/llave.key</code></li>
+          <li><code>clients/$rfc/password.txt</code></li>
+        </ul>
+        <p>Regresa y recarga (F5) para que aparezca en el listado.</p>
+      </div>
+    ");
+    exit;
+}
 
     throw new RuntimeException("Acción inválida.");
 } catch (Throwable $e) {

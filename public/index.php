@@ -84,6 +84,53 @@ $rfcs = listRfcs($clientsDir);
 <body>
   <h1>Descarga Masiva CFDI (en tu PC)</h1>
   <p class="muted">Esto corre local. No lo publiques en internet.</p>
+<hr style="margin:18px 0">
+
+<h2>Agregar cliente (subir e.firma)</h2>
+<form method="post" action="run.php" enctype="multipart/form-data" class="card">
+  <input type="hidden" name="action" value="addClient">
+
+  <div class="row">
+    <div>
+      <label>RFC (carpeta)</label>
+      <input name="newRfc" required placeholder="AAA010101AAA" style="text-transform:uppercase">
+    </div>
+
+    <div>
+      <label>Nombre del cliente (opcional)</label>
+      <input name="clientName" placeholder="Ej. Ferretería La Paz">
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>Certificado (.cer)</label>
+      <input name="cerFile" type="file" accept=".cer" required>
+    </div>
+
+    <div>
+      <label>Llave privada (.key)</label>
+      <input name="keyFile" type="file" accept=".key" required>
+    </div>
+  </div>
+
+  <div class="row">
+    <div style="min-width:260px">
+      <label>Contraseña e.firma</label>
+      <div style="display:flex; gap:10px; align-items:center">
+        <input id="pw" name="password" type="password" required placeholder="Contraseña" style="flex:1">
+        <button type="button" onclick="
+          const i=document.getElementById('pw');
+          i.type = (i.type==='password') ? 'text' : 'password';
+          this.textContent = (i.type==='password') ? 'Ver' : 'Ocultar';
+        ">Ver</button>
+      </div>
+      <div class="muted" style="margin-top:6px">Se guardará localmente en <code>clients\RFC\password.txt</code></div>
+    </div>
+  </div>
+
+  <button type="submit">Guardar cliente</button>
+</form>
 
   <div class="card">
     <h2>1) Crear solicitud (SAT)</h2>
