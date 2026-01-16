@@ -17,3 +17,13 @@ Verifica:
 php -v
 composer -V
 php -m | findstr zip
+
+
+## Subir cambios a GitHub (push)
+
+```bash
+cd C:\cfdi-downloader
+git status
+git add .
+git commit -m "mensaje del cambio"
+git push
