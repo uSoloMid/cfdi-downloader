@@ -23,6 +23,7 @@ $rfcs = listRfcs($clientsDir);
 <head>
   <meta charset="utf-8">
   <title>Descarga Masiva CFDI (local)</title>
+  <p><a href="jobs.php">📌 Historial de solicitudes (pendientes/completadas)</a></p>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
@@ -103,25 +104,58 @@ $rfcs = listRfcs($clientsDir);
 
       <div class="row">
         <div>
-          <label>Inicio (fecha)</label>
-          <input name="startDate" type="date" required>
+          <label>Mes inicio</label>
+          <select name="startMonth" required>
+            <option value="01">Enero</option>
+            <option value="02">Febrero</option>
+            <option value="03">Marzo</option>
+            <option value="04">Abril</option>
+            <option value="05">Mayo</option>
+            <option value="06">Junio</option>
+            <option value="07">Julio</option>
+            <option value="08">Agosto</option>
+            <option value="09">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12">Diciembre</option>
+          </select>
         </div>
+
         <div>
-          <label>Inicio (hora)</label>
-          <input name="startTime" type="time" required value="00:00">
+          <label>Año inicio</label>
+          <input name="startYear" type="number" min="2019" max="2100" value="2025" required>
         </div>
       </div>
 
       <div class="row">
         <div>
-          <label>Fin (fecha)</label>
-          <input name="endDate" type="date" required>
+          <label>Mes fin</label>
+          <select name="endMonth" required>
+            <option value="01">Enero</option>
+            <option value="02">Febrero</option>
+            <option value="03">Marzo</option>
+            <option value="04">Abril</option>
+            <option value="05">Mayo</option>
+            <option value="06">Junio</option>
+            <option value="07">Julio</option>
+            <option value="08">Agosto</option>
+            <option value="09">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12" selected>Diciembre</option>
+          </select>
         </div>
+
         <div>
-          <label>Fin (hora)</label>
-          <input name="endTime" type="time" required value="23:59">
+          <label>Año fin</label>
+          <input name="endYear" type="number" min="2019" max="2100" value="2025" required>
         </div>
       </div>
+
+      <p class="muted">
+        Se convertirá automáticamente a: <b>01 del mes inicio 00:01</b> → <b>último día del mes fin 23:59</b>.
+      </p>
+
 
       <div class="row">
         <div>

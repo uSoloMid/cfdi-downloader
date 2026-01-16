@@ -118,21 +118,63 @@ function render(string $title, string $bodyHtml): void
 }
 
 $action = $_POST['action'] ?? '';
+date_default_timezone_set('America/Mexico_City');
 try {
     if ($action === 'create') {
         $rfc = trim((string)($_POST['rfc'] ?? ''));
-        $startDate = (string)($_POST['startDate'] ?? '');
-        $startTime = (string)($_POST['startTime'] ?? '00:00');
-        $endDate   = (string)($_POST['endDate'] ?? '');
-        $endTime   = (string)($_POST['endTime'] ?? '23:59');
+        $startMonth = (string)($_POST['startMonth'] ?? '');
+        $startYear  = (string)($_POST['startYear'] ?? '');
+        $endMonth   = (string)($_POST['endMonth'] ?? '');
+        $endYear    = (string)($_POST['endYear'] ?? '');
 
-        $start = DateTimeImmutable::createFromFormat('Y-m-d H:i', "$startDate $startTime");
-        $end   = DateTimeImmutable::createFromFormat('Y-m-d H:i', "$endDate $endTime");
-
-        if (!$start || !$end) {
-            throw new RuntimeException("Fecha/hora inválida.");
+        if ($startMonth === '' || $startYear === '' || $endMonth === '' || $endYear === '') {
+            throw new RuntimeException("Fecha inválida: faltan mes/año.");
+        }
+        $tz = new DateTimeZone('America/Mexico_City');
+        // Inicio: 01 del mes inicio a las 00:01:00
+        $start = DateTimeImmutable::createFromFormat(
+            'Y-m-d H:i:s',
+            sprintf('%04d-%02d-01 00:01:00', (int)$startYear, (int)$startMonth)
+        );
+        if (!$start) {
+            throw new RuntimeException("Fecha inválida (inicio).");
         }
 
+        // Fin: último día del mes fin a las 23:59:00
+        $endBase = DateTimeImmutable::createFromFormat(
+            'Y-m-d H:i:s',
+            sprintf('%04d-%02d-01 00:00:00', (int)$endYear, (int)$endMonth),
+            $tz
+        );
+
+        if (!$endBase) {
+            throw new RuntimeException("Fecha inválida (fin).");
+        }
+        $end = $endBase->modify('last day of this month')->setTime(23, 59, 0);
+
+        // Si el fin cae en el futuro, recortarlo a "hoy 23:59"
+        $tz = new DateTimeZone('America/Mexico_City');
+
+        $start = DateTimeImmutable::createFromFormat(
+            'Y-m-d H:i:s',
+            sprintf('%04d-%02d-01 00:01:00', (int)$startYear, (int)$startMonth),
+            $tz
+        );
+
+
+        // Recorte anti-futuro (muy seguro): ahora - 10 minutos
+        $now = new DateTimeImmutable('now', $tz);
+        $safeEnd = $now->modify('-10 minutes');
+
+        if ($end > $safeEnd) {
+            $end = $safeEnd;
+        }
+
+
+
+        if ($end <= $start) {
+            throw new RuntimeException("Rango inválido: el fin debe ser mayor al inicio.");
+        }
         [$start, $end] = normalizePeriod($start, $end);
 
         $downloadType = (string)($_POST['downloadType'] ?? 'issued');
@@ -207,6 +249,11 @@ try {
 
         $statusReq = $verify->getStatusRequest()->getValue();
         $isFinished = $verify->getStatusRequest()->isFinished();
+        $job['lastCheckedAt'] = (new DateTimeImmutable())->format(DateTimeInterface::ATOM);
+        $job['lastStatus'] = $statusReq;
+        $job['lastPackagesCount'] = (int)$verify->countPackages();
+        saveJob($requestId, $job);
+
 
         $html = "<div class='card'>
             <p><b>RequestId:</b> <code>" . h($requestId) . "</code></p>
@@ -292,6 +339,74 @@ try {
         </div>";
 
         render("Descarga", $html);
+        exit;
+    }
+    if ($action === 'recreate') {
+        $oldRequestId = trim((string)($_POST['oldRequestId'] ?? ''));
+        $offsetSeconds = (int)($_POST['offsetSeconds'] ?? 1);
+        if ($offsetSeconds === 0) $offsetSeconds = 1;
+
+        $old = loadJob($oldRequestId);
+        $rfc = (string)($old['rfc'] ?? '');
+        if ($rfc === '') throw new RuntimeException("Job viejo sin RFC.");
+
+        $downloadType = (string)($old['downloadType'] ?? 'issued');
+        $requestType  = (string)($old['requestType'] ?? 'xml');
+        $status       = (string)($old['status'] ?? 'undefined');
+
+        $start = new DateTimeImmutable((string)$old['start']);
+        $end   = new DateTimeImmutable((string)$old['end']);
+
+        // mover el inicio para que sea "otro periodo" para el SAT
+        $start = $start->modify(($offsetSeconds >= 0 ? '+' : '') . $offsetSeconds . ' seconds');
+        [$start, $end] = normalizePeriod($start, $end);
+
+        $service = makeService($rfc);
+
+        $qp = QueryParameters::create()
+            ->withPeriod(DateTimePeriod::createFromValues(
+                $start->format('Y-m-d H:i:s'),
+                $end->format('Y-m-d H:i:s')
+            ))
+            ->withDownloadType($downloadType === 'received' ? DownloadType::received() : DownloadType::issued())
+            ->withRequestType($requestType === 'metadata' ? RequestType::metadata() : RequestType::xml());
+
+        if ($status === 'active') $qp = $qp->withDocumentStatus(DocumentStatus::active());
+        if ($status === 'cancelled') $qp = $qp->withDocumentStatus(DocumentStatus::cancelled());
+
+        // regla SAT recibidas+xml
+        if ($downloadType === 'received' && $requestType === 'xml' && $status !== 'active') {
+            $qp = $qp->withDocumentStatus(DocumentStatus::active());
+        }
+
+        $query = $service->query($qp);
+        if (!$query->getStatus()->isAccepted()) {
+            throw new RuntimeException("Fallo al presentar consulta: " . $query->getStatus()->getMessage());
+        }
+
+        $requestId = $query->getRequestId();
+        $job = [
+            'rfc' => $rfc,
+            'start' => $start->format(DateTimeInterface::ATOM),
+            'end' => $end->format(DateTimeInterface::ATOM),
+            'downloadType' => $downloadType,
+            'requestType' => $requestType,
+            'status' => $status,
+            'createdAt' => (new DateTimeImmutable())->format(DateTimeInterface::ATOM),
+            'packagesDownloaded' => [],
+            'recreatedFrom' => $oldRequestId,
+            'offsetSeconds' => $offsetSeconds,
+        ];
+        saveJob($requestId, $job);
+
+        render("Solicitud recreada", "
+        <div class='card'>
+          <p class='ok'><b>Listo.</b> Se creó una nueva solicitud ajustando el inicio en {$offsetSeconds} segundos.</p>
+          <p><b>Nuevo RequestId:</b> <code>" . h($requestId) . "</code></p>
+          <p><b>Basada en:</b> <code>" . h($oldRequestId) . "</code></p>
+          <p>Ahora verifica/descarga con el nuevo RequestId.</p>
+        </div>
+    ");
         exit;
     }
 
