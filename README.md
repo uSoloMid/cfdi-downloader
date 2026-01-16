@@ -27,3 +27,7 @@ git status
 git add .
 git commit -m "mensaje del cambio"
 git push
+
+
+## Abir live server
+php -S localhost:8080 -t public
