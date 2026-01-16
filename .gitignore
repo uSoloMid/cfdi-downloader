@@ -1,5 +1,6 @@
 /clients/
 /downloads/
 /storage/
-/vendor/git --version
+/vendor/
+git --version
 
