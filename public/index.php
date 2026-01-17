@@ -84,53 +84,53 @@ $rfcs = listRfcs($clientsDir);
 <body>
   <h1>Descarga Masiva CFDI (en tu PC)</h1>
   <p class="muted">Esto corre local. No lo publiques en internet.</p>
-<hr style="margin:18px 0">
+  <hr style="margin:18px 0">
 
-<h2>Agregar cliente (subir e.firma)</h2>
-<form method="post" action="run.php" enctype="multipart/form-data" class="card">
-  <input type="hidden" name="action" value="addClient">
+  <h2>Agregar cliente (subir e.firma)</h2>
+  <form method="post" action="run.php" enctype="multipart/form-data" class="card">
+    <input type="hidden" name="action" value="addClient">
 
-  <div class="row">
-    <div>
-      <label>RFC (carpeta)</label>
-      <input name="newRfc" required placeholder="AAA010101AAA" style="text-transform:uppercase">
+    <div class="row">
+      <div>
+        <label>RFC (carpeta)</label>
+        <input name="newRfc" required placeholder="AAA010101AAA" style="text-transform:uppercase">
+      </div>
+
+      <div>
+        <label>Nombre del cliente (opcional)</label>
+        <input name="clientName" placeholder="Ej. Ferretería La Paz">
+      </div>
     </div>
 
-    <div>
-      <label>Nombre del cliente (opcional)</label>
-      <input name="clientName" placeholder="Ej. Ferretería La Paz">
-    </div>
-  </div>
+    <div class="row">
+      <div>
+        <label>Certificado (.cer)</label>
+        <input name="cerFile" type="file" accept=".cer" required>
+      </div>
 
-  <div class="row">
-    <div>
-      <label>Certificado (.cer)</label>
-      <input name="cerFile" type="file" accept=".cer" required>
+      <div>
+        <label>Llave privada (.key)</label>
+        <input name="keyFile" type="file" accept=".key" required>
+      </div>
     </div>
 
-    <div>
-      <label>Llave privada (.key)</label>
-      <input name="keyFile" type="file" accept=".key" required>
-    </div>
-  </div>
-
-  <div class="row">
-    <div style="min-width:260px">
-      <label>Contraseña e.firma</label>
-      <div style="display:flex; gap:10px; align-items:center">
-        <input id="pw" name="password" type="password" required placeholder="Contraseña" style="flex:1">
-        <button type="button" onclick="
+    <div class="row">
+      <div style="min-width:260px">
+        <label>Contraseña e.firma</label>
+        <div style="display:flex; gap:10px; align-items:center">
+          <input id="pw" name="password" type="password" required placeholder="Contraseña" style="flex:1">
+          <button type="button" onclick="
           const i=document.getElementById('pw');
           i.type = (i.type==='password') ? 'text' : 'password';
           this.textContent = (i.type==='password') ? 'Ver' : 'Ocultar';
         ">Ver</button>
+        </div>
+        <div class="muted" style="margin-top:6px">Se guardará localmente en <code>clients\RFC\password.txt</code></div>
       </div>
-      <div class="muted" style="margin-top:6px">Se guardará localmente en <code>clients\RFC\password.txt</code></div>
     </div>
-  </div>
 
-  <button type="submit">Guardar cliente</button>
-</form>
+    <button type="submit">Guardar cliente</button>
+  </form>
 
   <div class="card">
     <h2>1) Crear solicitud (SAT)</h2>
@@ -244,6 +244,66 @@ $rfcs = listRfcs($clientsDir);
       El SAT puede tardar minutos u horas. Esto funciona en 4 pasos: solicitud → verificación → descarga de paquetes → extraer.
     </p>
   </div>
+  <script>
+    // Encuentra el FORM que agrega clientes (el que tiene action=addClient)
+    const addClientActionInput = document.querySelector('input[name="action"][value="addClient"]');
+    const addClientForm = addClientActionInput ? addClientActionInput.closest('form') : null;
+
+    if (addClientForm) {
+      const cerInput = addClientForm.querySelector('input[name="cerFile"]');
+      const rfcInput = addClientForm.querySelector('input[name="newRfc"]');
+      const nameInput = addClientForm.querySelector('input[name="clientName"]');
+
+      // Mantener RFC en mayúsculas si lo teclean
+      if (rfcInput) {
+        rfcInput.addEventListener('input', () => {
+          rfcInput.value = (rfcInput.value || '').toUpperCase();
+        });
+      }
+
+      // Al elegir .cer -> pedir RFC/Nombre a run.php y autollenar
+      if (cerInput) {
+        cerInput.addEventListener('change', async () => {
+          if (!cerInput.files || !cerInput.files[0]) return;
+
+          const fd = new FormData();
+          fd.append('action', 'probeCer');
+          fd.append('cerFile', cerInput.files[0]);
+
+          try {
+            const res = await fetch('run.php', {
+              method: 'POST',
+              body: fd
+            });
+
+            const txt = await res.text();
+            let data;
+            try {
+              data = JSON.parse(txt);
+            } catch (e) {
+              console.log("Respuesta NO JSON:", txt);
+              throw e;
+            }
+
+
+            if (!data || !data.ok) return;
+
+            if (rfcInput && data.rfc) rfcInput.value = String(data.rfc).toUpperCase();
+
+            // Solo llena nombre si está vacío, para no pisar lo que teclees
+            if (nameInput && data.name) {
+              nameInput.value = String(data.name);
+            }
+
+          } catch (e) {
+            // Si falla, no pasa nada: el usuario puede teclear manualmente
+            console.warn(e);
+          }
+        });
+      }
+    }
+  </script>
+
 </body>
 
 </html>
