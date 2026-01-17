@@ -171,32 +171,21 @@ if ($action === '') {
 // ✅ PEGA AQUÍ (AQUÍ MISMO) esta función:
 function extractClientInfoFromCerTmp(string $cerTmpPath): array
 {
-    if (!extension_loaded('openssl')) {
-        throw new RuntimeException("Falta la extensión OpenSSL en PHP.");
+    $der = (string)file_get_contents($cerTmpPath);
+    if ($der === '') {
+        throw new RuntimeException("El certificado .cer está vacío o no se pudo leer.");
     }
 
-    $cert = openssl_x509_read('file://' . $cerTmpPath);
-    if (!$cert) {
-        throw new RuntimeException("No pude leer el certificado .cer (¿archivo inválido?).");
-    }
+    // Esta función ya la tienes y ya funciona con certificados SAT en DER
+    $info = extractRfcAndNameFromCerContent($der);
 
-    $data = openssl_x509_parse($cert, false);
-    $subject = $data['subject'] ?? [];
-
-    $name = trim((string)($subject['CN'] ?? $subject['O'] ?? ''));
-
-    $hay = strtoupper(
-        implode(' ', array_map('strval', $subject)) . ' ' .
-            (string)($subject['serialNumber'] ?? '') . ' ' .
-            (string)($subject['x500UniqueIdentifier'] ?? '')
-    );
-
-    if (!preg_match('/\b([A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3})\b/u', $hay, $m)) {
-        throw new RuntimeException("No pude detectar el RFC dentro del certificado (.cer).");
-    }
-
-    return ['rfc' => $m[1], 'name' => $name, 'subject' => $subject];
+    return [
+        'rfc' => (string)($info['rfc'] ?? ''),
+        'name' => (string)($info['name'] ?? ''),
+        'subject' => [],
+    ];
 }
+
 function monthFolderFromCfdiXml(string $xml, string $fallback = 'unknown-month'): string
 {
     try {
@@ -462,7 +451,8 @@ try {
                         foreach ($reader->cfdis() as $uuid => $xml) {
                             $savedCount++;
                             $monthFolder = monthFolderFromCfdiXml($xml, $fallbackMonth);
-                            $targetDir = $baseDir . "/$monthFolder";
+                            $year = substr($monthFolder, 0, 4); // "2023" desde "2023-01"
+                            $targetDir = $baseDir . "/$year/$monthFolder";
                             ensureDir($targetDir);
                             file_put_contents($targetDir . "/" . $uuid . ".xml", $xml);
                         }
