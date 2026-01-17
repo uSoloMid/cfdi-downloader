@@ -1,0 +1,25 @@
+<?php
+  $active = $active ?? 'inicio'; // inicio|config|ayuda
+?>
+<div class="header">
+  <div class="header-inner">
+    <a class="brand" href="index.php">
+      <img class="brand-logo" src="assets/logo.png" alt="Logo">
+    </a>
+
+    <nav class="nav">
+      <a class="<?= $active==='inicio'?'active':'' ?>" href="index.php">Inicio</a>
+      <a class="<?= $active==='config'?'active':'' ?>" href="config.php">Configuración</a>
+      <a class="<?= $active==='ayuda'?'active':'' ?>" href="ayuda.php">Ayuda</a>
+    </nav>
+
+    <div class="header-actions">
+      <a class="btn btn-soft" href="jobs.php">Historial</a>
+      <a class="btn btn-soft" href="jobs.php">Historial</a>
+
+      <div class="avatar" title="Usuario">
+        <span>🙂</span>
+      </div>
+    </div>
+  </div>
+</div>
