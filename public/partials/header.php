@@ -1,22 +1,24 @@
-<div class="header">
+<?php
+  /** @var string $active */
+  $active = $active ?? 'inicio'; // inicio|cliente|solicitud|historial|config|ayuda
+?>
+<header class="header">
   <div class="header-inner">
-    <a class="brand" href="index.php">
-     <img src="/assets/logo.png" class="brand-logo" alt="Logo">
-    </a>
-    <div>
-      <div style="font-weight:900; line-height:1">CFDI Downloader</div>
-      <div class="muted" style="font-size:12px; margin-top:2px">Local • Seguro • Sin nube</div>
-    </div>
+    <a class="brand" href="index.php" aria-label="Inicio">
+      <img class="brand-logo" src="/assets/logo.png" alt="Logo" onerror="this.src='/assets/logo.svg'">
     </a>
 
-    <nav class="nav">
-      <a href="index.php">Inicio</a>
-      <a href="cliente.php">Configuración</a>
-      <a href="ayuda.php">Ayuda</a>
+    <nav class="nav" aria-label="Navegación">
+      <a class="<?= ($active==='inicio') ? 'active' : '' ?>" href="index.php">Inicio</a>
+      <a class="<?= ($active==='cliente') ? 'active' : '' ?>" href="cliente.php">Configuración</a>
+      <a class="<?= ($active==='ayuda') ? 'active' : '' ?>" href="ayuda.php">Ayuda</a>
     </nav>
 
     <div class="header-actions">
-      <a class="btn" href="jobs.php">Historial</a>
+      <a class="btn btn-soft" href="jobs.php">Historial</a>
+      <div class="avatar" title="Local">
+        <span>🖥️</span>
+      </div>
     </div>
   </div>
-</div>
+</header>

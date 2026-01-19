@@ -1,4 +1,4 @@
-<div class="footer">
+<footer class="footer">
   <div class="footer-left">
     ¿Tienes preguntas? <a href="ayuda.php">Consigue ayuda aquí →</a>
   </div>
@@ -8,6 +8,6 @@
     <a href="ayuda.php#politica">Política</a>
   </div>
   <div class="footer-bottom">
-    © <?= date('Y') ?> Descarga Masiva de CFDI. Todos los derechos reservados.
+    © <?php echo date('Y'); ?> Descarga Masiva de CFDI.
   </div>
-</div>
+</footer>
